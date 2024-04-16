@@ -2,7 +2,7 @@ const char page1[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>LD22410 Configurator</title>
+<title>LD2410 Configurator</title>
 <style type="text/css">
 input{
 border-radius: 5px;
@@ -19,46 +19,12 @@ body{width:340px;font-family: Arial, Helvetica, sans-serif; overflow:hidden;}
 .range{
   overflow: hidden;
 }
-.dropdown {
-    position: relative;
-    display: inline-block;
-}
-.dropbtn {
-    background-color: #50a0ff;
-    padding: 1px;
-    font-size: 12px;
-  background-image: -webkit-linear-gradient(top, #efa0b0, #50a0ff);
-  border-radius: 5px;
-  margin-bottom: 5px;
-  box-shadow: 2px 2px 12px #000000;
-}
 .btn {
     background-color: #50a0ff;
     padding: 1px;
     font-size: 12px;
     min-width: 50px;
     border: none;
-}
-.dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #919191;
-    min-width: 40px;
-    min-height: 1px;
-    z-index: 1;
-}
-.dropdown:hover .dropdown-content {display: block;}
-.dropdown:hover .dropbtn {background-color: #3e8e41;}
-.dropdown:hover .btn {  background-image: -webkit-linear-gradient(top, #efffff, #a0a0ff);}
-#rec{
-opacity:.9;
-display:none;
-top:300px;
-left:150px;
-position:absolute;
-background-color:#A13131;
-overflow:auto;
-z-index:1;
 }
 </style>
 <script type="text/javascript">
@@ -91,7 +57,7 @@ function startWS(){
   document.getElementById('chart').addEventListener("mousemove", mMove)
   
   ws=new WebSocket("ws://"+window.location.host+"/ws")
-  //ws=new WebSocket("ws://192.168.31.63/ws")
+//  ws=new WebSocket("ws://192.168.31.63/ws")
   ws.onopen=function(evt){}
   ws.onclose=function(evt){alert("Connection closed.");}
   ws.onmessage=function(evt){
@@ -122,7 +88,7 @@ function startWS(){
       a.stat.setAttribute('style',d.stat?'color:red':'color:white')
       if(!pause)
       {
-        aa=[dt,+d.bv,+d.distance,+d.energy,+d.v3]
+        aa=[dt,+d.distance,+d.energy,d.mov?50:0]
         va.push(aa)
       }
       draw_bars(+d.distance, +d.energy)
@@ -242,7 +208,7 @@ try {
   }
 
   ciel=max
-  colors=[0,'#FFF','#00F','#0F0','#FF0','#0FF']
+  colors=[0,'#00F','#0F0','#FF0','#0FF']
   for(line=4;line>0;line--)
   {
     start=0
@@ -329,7 +295,7 @@ Update:<input type="text" size="1" id="rate" onChange="{chgRate(this.value)}">ms
 <tr><td>Gates</td><td> <input id="gates" type="text" size="1" onchange="{setVar('gate', this.value)}"></td></tr>
 <tr><td>Max Moving Gate</td><td><input id="MMG" type="text" size="1" onchange="{setVar('movdist', this.value)}"></td></tr>
 <tr><td>Max Stationary Gate</td><td><input id="MSG" type="text" size="1" onchange="{setVar('statdist', this.value)}"></td></tr>
-<tr><td>Idle Timer</td><td><input id="IT" type="text" size="1" onchange="{setVar('inact', this.value)}"></td></tr>
+<tr><td>Idle Timer</td><td><input id="IT" type="text" size="1" onchange="{setVar('idletime', this.value)}"></td></tr>
 
 <tr><td colspan="2"> &nbsp; &nbsp; &nbsp; &nbsp; Moving Stationary</td></tr>
 <tr><td colspan="2">Gate 0 <input id="ms-0" type="text" size="1" onchange="{chgGateM(0,this.value)}"><input id="sa-0" type="text" size="1" onchange="{chgGateS(0,this.value)}"></td></tr>
