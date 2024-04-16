@@ -99,6 +99,18 @@ const char *jsonList1[] = { // WebSocket commands
   NULL
 };
 
+void setEngineeringMode(bool bEnable)
+{
+  bool b;
+  if(bEnable)
+    b = radar.requestStartEngineeringMode();
+  else
+    b = radar.requestEndEngineeringMode();
+  String s = "EM ";
+  s += b;
+  WsSend(s);
+}
+
 void jsonCallback(int16_t iName, int iValue, char *psValue) // handle WebSocket commands
 {
   static uint8_t gateNum = 0;
@@ -134,7 +146,6 @@ void jsonCallback(int16_t iName, int iValue, char *psValue) // handle WebSocket 
     case 5: // gate
       gateNum = constrain(iValue, 1, 8);
       break;
-
     case 6: // ms
       newVal = constrain(iValue, 0, 100);
       if(radar.setGateSensitivityThreshold(gateNum, newVal, radar.stationary_sensitivity[gateNum]) )
@@ -149,10 +160,7 @@ void jsonCallback(int16_t iName, int iValue, char *psValue) // handle WebSocket 
       radar.requestRestart();
       break;
     case 9: // em
-      if(iValue)
-        radar.requestStartEngineeringMode();
-      else
-        radar.requestEndEngineeringMode();
+      setEngineeringMode(iValue ? true:false);
       break;
     case 10: // factres
       radar.requestFactoryReset();
