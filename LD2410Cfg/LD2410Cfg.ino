@@ -70,8 +70,8 @@ bool bSendSettings;
 
 String settingsJson()
 {
-  radar.requestCurrentConfiguration(); // refesh data to update page
-
+  if(!radar.requestCurrentConfiguration()) // refesh data to update page
+    Serial.println("requestConfig failed");
   jsonString js("settings");
   js.Var("tz", ee.tz);
   js.Var("r", ee.rate);
@@ -81,6 +81,7 @@ String settingsJson()
   js.Var("idle", radar.sensor_idle_time);
   js.Array("ma", radar.motion_sensitivity, radar.max_gate + 1);
   js.Array("sa", radar.stationary_sensitivity, radar.max_gate + 1);
+  js.Var("em", engineeringMode);
   return js.Close();
 }
 
@@ -99,16 +100,24 @@ const char *jsonList1[] = { // WebSocket commands
   NULL
 };
 
+void sendAlert(String s)
+{
+  jsonString js("alert");
+  js.Var("text", s);
+  WsSend(js.Close() );
+}
+
 void setEngineeringMode(bool bEnable)
 {
+  engineeringMode = bEnable;
+
   bool b;
   if(bEnable)
     b = radar.requestStartEngineeringMode();
   else
     b = radar.requestEndEngineeringMode();
-  String s = "EM ";
-  s += b;
-  WsSend(s);
+  if(!b)
+    sendAlert("EM switch failed");
 }
 
 void jsonCallback(int16_t iName, int iValue, char *psValue) // handle WebSocket commands
@@ -129,18 +138,24 @@ void jsonCallback(int16_t iName, int iValue, char *psValue) // handle WebSocket 
       newVal = constrain(iValue, 1, 8);
       if(radar.setMaxValues(newVal, radar.max_stationary_gate, radar.sensor_idle_time) )
         radar.requestRestart();
+      else
+        sendAlert("setMaxValues error");
       break;
 
     case 3: // msgates
       newVal = constrain(iValue, 1, 8);
       if(radar.setMaxValues(radar.max_moving_gate, newVal, radar.sensor_idle_time) )
         radar.requestRestart();
+      else
+        sendAlert("setMaxValues error");
       break;
 
     case 4: // idletime
       newVal =  constrain(iValue, 1, 200);
       if(radar.setMaxValues(radar.max_moving_gate, radar.max_stationary_gate, newVal) )
         radar.requestRestart();
+      else
+        sendAlert("setMaxValues error");
       break;
 
     case 5: // gate
@@ -150,20 +165,26 @@ void jsonCallback(int16_t iName, int iValue, char *psValue) // handle WebSocket 
       newVal = constrain(iValue, 0, 100);
       if(radar.setGateSensitivityThreshold(gateNum, newVal, radar.stationary_sensitivity[gateNum]) )
         radar.requestRestart();
+      else
+        sendAlert("setGateSensitivityThreshold error");
       break;
     case 7: // ss
       newVal = constrain(iValue, 0, 100);
       if(radar.setGateSensitivityThreshold(gateNum, radar.motion_sensitivity[gateNum], newVal) )
         radar.requestRestart();
+      else
+        sendAlert("setGateSensitivityThreshold error");
       break;
     case 8: // restart
-      radar.requestRestart();
+      if(!radar.requestRestart())
+        sendAlert("requestRestart error");
       break;
     case 9: // em
       setEngineeringMode(iValue ? true:false);
       break;
     case 10: // factres
-      radar.requestFactoryReset();
+      if(!radar.requestFactoryReset())
+        sendAlert("requestFactorReset error");
       break;
   }
   bSendSettings = true; // send everything
@@ -246,6 +267,13 @@ void setup()
 #ifdef OTA_ENABLE
   ArduinoOTA.setHostname(hostName);
   ArduinoOTA.begin();
+  ArduinoOTA.onStart([]() {
+    ee.update();
+    jsonString js("alert");
+    js.Var("text", "OTA Update Started");
+    ws.textAll(js.Close());
+    ws.closeAll(); // page has faster response with this close
+  });
 #endif
 
   jsonParse.setList(jsonList1);
@@ -256,8 +284,11 @@ void setup()
 
   if(radar.begin(RADAR_SERIAL))
   {
-    radar.requestCurrentConfiguration();
+    if(!radar.requestCurrentConfiguration())
+      Serial.println("requestConfig failed");
   }
+  else
+    Serial.println("radar.begin failed");
 
   pinMode(DIGITAL_PRESENCE, INPUT);
 }
