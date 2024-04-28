@@ -3,33 +3,11 @@ const char page1[] PROGMEM = R"rawliteral(
 <html lang="en">
 <head><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>LD2410 Configurator</title>
-<style type="text/css">
-input{
-border-radius: 5px;
-margin-bottom: 5px;
-box-shadow: 2px 2px 12px #000000;
-background-image: -moz-linear-gradient(top, #ffffff, #50a0ff);
-background-image: -ms-linear-gradient(top, #ffffff, #50a0ff);
-background-image: -o-linear-gradient(top, #ffffff, #50a0ff);
-background-image: -webkit-linear-gradient(top, #efffff, #50a0ff);
-background-image: linear-gradient(top, #ffffff, #50a0ff);
-background-clip: padding-box;
-}
-body{width:340px;font-family: Arial, Helvetica, sans-serif; overflow:hidden;}
-.range{
-  overflow: hidden;
-}
-.btn {
-    background-color: #50a0ff;
-    padding: 1px;
-    font-size: 12px;
-    min-width: 50px;
-    border: none;
-}
-</style>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js" type="text/javascript" charset="utf-8"></script>
 <script type="text/javascript">
 a=document.all
 oledon=0;v=0;min=0;max=300;mod=5;st=0;lastst=0
+colors=[0,'#00F','#0F0','#FF0','#0FF','#F0F']
 pause=0
 zoom=1;btn=0;dispIdx=0
 va=new Array()
@@ -41,21 +19,67 @@ function onWheel(we){
 function setBtn(me){btn=1}
 function clrBtn(me){btn=0}
 function mMove(me){
- if(btn){
-   dispIdx+=me.movementX*zoom
-   if(dispIdx<0) dispIdx=0
- }
+  if(btn){
+    dispIdx+=me.movementX*zoom
+    if(dispIdx<0) dispIdx=0
+  }
+
+  ch = $('#chart')
+  canvasOffset=ch.offset()
+  mouseX=parseInt(me.clientX-canvasOffset.left)
+  mouseY=parseInt(me.clientY-canvasOffset.top)
+
+  hit=false
+  
+  tipCanvas=document.getElementById("tip")
+  tipCtx=tipCanvas.getContext("2d")
+
+  tipCtx.globalCompositeOperation='destination-over';
+
+  tipCtx.clearRect(1,1,tipCanvas.width-2,tipCanvas.height-2)
+  tipCtx.lineWidth=2
+  tipCtx.strokeStyle='#FFF'
+  tipCtx.font='italic 8pt sans-serif'
+  tipCtx.textAlign="left"
+
+    i=va.length-1-dispIdx
+    x=ch.width()-mouseX
+    i-=(x*zoom)
+    if(i>=0)
+    {
+    if(typeof(va[i][0])!='undefined')
+    {
+      tipCtx.fillStyle=colors[1]
+      tipCtx.fillText(va[i][1],4,15)
+      tipCtx.fillStyle=colors[2]
+      tipCtx.fillText(va[i][2],4,29)
+      tipCtx.fillStyle=colors[3]
+      tipCtx.fillText(va[i][3],4,44)
+      tipCtx.fillStyle=colors[4]
+      tipCtx.fillText(va[i][4],4,58)
+      tipCtx.fillStyle='#FFF'
+      date=new Date(va[i][0])
+      tipCtx.fillText(date.toLocaleTimeString(),4,72)
+    }
+    hit=true
+    popup=document.getElementById("popup")
+    popup.style.top=(mouseY+20)+"px"
+    popup.style.left=mouseX+"px"
+  }
+  if(!hit){popup.style.left="-200px"}
 }
 
-function startWS(){
+$(document).ready(function()
+{
   a.rng.value=max
   draw_bars(0,0)
   draw_chart()
+
   document.getElementById('chart').addEventListener("wheel", onWheel)
   document.getElementById('chart').addEventListener("mousedown", setBtn)
   document.getElementById('chart').addEventListener("mouseup", clrBtn)
   document.getElementById('chart').addEventListener("mousemove", mMove)
-  
+
   ws=new WebSocket("ws://"+window.location.host+"/ws")
 //  ws=new WebSocket("ws://192.168.31.63/ws")
   ws.onopen=function(evt){}
@@ -88,14 +112,14 @@ function startWS(){
       a.stat.setAttribute('style',d.stat?'color:red':'color:white')
       if(!pause)
       {
-        aa=[dt,+d.distance,+d.energy,d.mov?50:0]
+        aa=[dt,+d.distance,+d.energy,d.mov?50:0,d.stat?50:0]
         va.push(aa)
       }
       draw_bars(+d.distance, +d.energy)
       draw_chart()
     }
   }
-}
+});
 
 function setVar(varName, value)
 {
@@ -106,8 +130,7 @@ function draw_bars(v1,v2){
 try{
   var c2 = document.getElementById('bar')
   ctx=c2.getContext("2d")
-  ctx.fillStyle="#000";
-  ctx.fillRect(0,0,c2.width,c2.height)
+  ctx.clearRect(0,0,c2.width,c2.height)
   ctx.fillStyle="#FFF";
   ctx.lineWidth=1
   ctx.strokeStyle="#FFF"
@@ -208,35 +231,34 @@ try {
   }
 
   ciel=max
-  colors=[0,'#00F','#0F0','#FF0','#0FF']
-  for(line=4;line>0;line--)
+  for(line=5;line>0;line--)
   {
     start=0
     ctx.strokeStyle=colors[line]
     for(i=va.length-1-dispIdx,x=c.width-1;x>20&&i>=0;i-=zoom,x--)
     {
       if(typeof(va[i][line])!='undefined'){
-      v0=va[i][line]
-      y=base-(v0/ciel*range)
-      if(!start){start=1;ctx.beginPath();ctx.moveTo(c.width-1,y)}
-      else if(start)
+    v0=va[i][line]
+    y=base-(v0/ciel*range)
+    if(!start){start=1;ctx.beginPath();ctx.moveTo(c.width-1,y)}
+    else if(start)
+    {
+      if(zoom>1)
       {
-        if(zoom>1)
+        min2=max2=y
+        for(j=i+1;j<i+zoom;j++)
         {
-          min2=max2=y
-          for(j=i+1;j<i+zoom;j++)
-          {
-            y=base-(va[j][line]/ciel*range)
-            if(y<min2) min2=y
-            if(y>max2) max2=y
-          }
-          if(min2<y) ctx.lineTo(x,min2)
-          if(max2>y) ctx.lineTo(x,max2)
+          y=base-(va[j][line]/ciel*range)
+          if(y<min2) min2=y
+          if(y>max2) max2=y
         }
-        ctx.lineTo(x,y)
+        if(min2<y) ctx.lineTo(x,min2)
+        if(max2>y) ctx.lineTo(x,max2)
       }
-      }
-      else if(start){ctx.stroke();start=0;}
+      ctx.lineTo(x,y)
+    }
+    }
+    else if(start){ctx.stroke();start=0;}
     }
     if(start)ctx.stroke()
   }
@@ -267,9 +289,39 @@ function beep() {
     snd.play();
 }
 </script>
+<style type="text/css">
+#wrapper{
+  width: 100%;
+  height: 400px;
+  position: relative;
+}
+#popup{
+  position: absolute;
+  top: -150px;
+  left: -150px;
+  z-index: 10;
+  background: rgb(0,0,0);
+  border-radius: 2px;
+}
+#chart{
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+input{
+border-radius: 2px;
+margin-bottom: 2px;
+box-shadow: 4px 4px 10px #000000;
+background: rgb(160,160,160);
+background: linear-gradient(0deg, rgba(160,160,160,1) 0%, rgba(239,255,255,1) 100%);
+background-clip: padding-box;
+}
+body{width:340px;font-family: Arial, Helvetica, sans-serif; overflow:hidden;}
+</style>
 </head>
-<body bgcolor="black" text="silver"  onload="{startWS()}">
-<div>
+<body bgcolor="black" text="silver">
 <table align=center width=370>
 <tr align=center><td></td><td><button id="time">0:00:00 AM.0</button>
 </td><td colspan=2></td></tr>
@@ -281,14 +333,15 @@ function beep() {
 <tr align=center><td><div id="pres">PRESENCE</div><div id="mov">MOVING</div><div id="stat">STATIONARY</div></td><td></td>
 <td width=100 align="right">Distance<div id="value" style="font-size:xx-large">0</div></td><td width=100 align="right">Energy<div id="energy" style="font-size:xx-large">0</div></td>
 </tr>
-<tr><td colspan=4><canvas id="bar" width="360" height="40" style="float:center"></td></tr>
-<tr><td><div id="l1"></div></td><td align="right"><div id="v1"></div></td><td><div id="u1" align="center"></div></td><td align="right"><div id="t1" align="center"></div></td></tr>
-<tr><td><div id="l2"></div></td><td align="right"><div id="v2"></div></td><td><div id="u2" align="center"></div></td><td align="right"><div id="t2" align="center"></div></td></tr>
-<tr><td><div id="l3"></div></td><td align="right"><div id="v3"></div></td><td><div id="u3" align="center"></div></td><td align="right"><div id="t3" align="center"></div></td></tr>
+<tr><td colspan=4><canvas id="bar" width="360" height="60" style="float:center"></td></tr>
+<tr><td colspan=4> </td></tr>
 <tr><td colspan=4><input type="button" value="Pause " id="pause" onClick="{pause=!pause}">
 Update:<input type="text" size="1" id="rate" onChange="{chgRate(this.value)}">ms Range:<input type="text" size="1" id="rng" onChange="{setMax(+this.value)}"> &nbsp; <input type="submit" value="Setup" onClick="window.location='/s';">
 </td></tr>
-<tr><td colspan=4><canvas id="chart" width="360" height="360" style="float:center"></td></tr>
+<tr><td colspan=4><div id="wrapper">
+<canvas id="chart" width="360" height="360" style="float:center"></canvas>
+<div id="popup"><canvas id="tip" width="70" height="78" style="border:1px solid #00d3d3;"></canvas></div>
+</div></td></tr>
 </table>
 
 <table>
@@ -309,7 +362,6 @@ Update:<input type="text" size="1" id="rate" onChange="{chgRate(this.value)}">ms
 <tr><td colspan="2"><input type="submit" value="Factory Reset" onClick="{setVar('factres',0)}"></td></tr>
 
 </table>
-</div>
 </body>
 </html>
 )rawliteral";
